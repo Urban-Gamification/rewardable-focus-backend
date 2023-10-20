@@ -1,8 +1,13 @@
 import express from 'express';
 import { auth } from 'express-openid-connect';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
+
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const config = {
   authRequired: false,
@@ -25,6 +30,37 @@ app.get('/', (req, res) => {
 });
 
 // Your other routes here
+
+// Добавление новой цели для пользователя
+app.post('/add-goal', async (req, res) => {
+  const { user_id, description, status } = req.body;
+  const { data, error } = await supabase
+    .from('Goals')
+    .insert([{ user_id, description, status }]);
+  res.send(error || data);
+});
+
+// Изменение статуса цели
+app.put('/update-goal/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const { data, error } = await supabase
+    .from('Goals')
+    .update({ status })
+    .eq('id', id);
+  res.send(error || data);
+});
+
+// Добавление достижения
+app.post('/add-achievement', async (req, res) => {
+  const { user_id, goal_id, description, timestamp } = req.body;
+  const { data, error } = await supabase
+    .from('Achievements')
+    .insert([{ user_id, goal_id, description, timestamp }]);
+  res.send(error || data);
+});
+
+
 
 // Start the server
 app.listen(3000, () => {
