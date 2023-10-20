@@ -5,9 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
+const environment = process.env.ENVIRONMENT!;
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+// if environment = production then port = 3000
+const port = environment === 'production'? 80 : 3000;
 
 const config = {
   authRequired: false,
@@ -63,6 +66,6 @@ app.post('/add-achievement', async (req, res) => {
 
 
 // Start the server
-app.listen(3000, () => {
-  console.log('Server started on http://localhost:3000');
+app.listen(port, () => {
+  console.log('Server started on http://localhost:' + port);
 });
