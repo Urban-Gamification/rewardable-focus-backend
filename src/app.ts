@@ -12,25 +12,26 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // if environment = production then port = 3000
 const port = environment === 'production' ? 80 : 3000;
 
-const config = {
-  authRequired: false,
-  auth0Logout: true,
-  secret: process.env.SESSION_SECRET!,
-  baseURL: 'http://localhost:3000',
-  clientID: process.env.AUTH0_CLIENT_ID!,
-  issuerBaseURL: process.env.AUTH0_DOMAIN!
-};
+// const config = {
+//   authRequired: false,
+//   auth0Logout: true,
+//   secret: process.env.SESSION_SECRET!,
+//   baseURL: 'http://localhost:3000',
+//   clientID: process.env.AUTH0_CLIENT_ID!,
+//   issuerBaseURL: process.env.AUTH0_DOMAIN!
+// };
 
 console.log(`Session secret is: ${process.env.SESSION_SECRET}`);
 
 const app = express();
+app.use(express.json());
 
 // Use auth middleware
-app.use(auth(config));
+// app.use(auth(config));
 
-app.get('/', (req, res) => {
-  res.send(req.oidc.isAuthenticated() ? 'Logged in' : 'Logged out');
-});
+// app.get('/', (req, res) => {
+//   res.send(req.oidc.isAuthenticated() ? 'Logged in' : 'Logged out');
+// });
 
 
 interface Goal {
@@ -46,34 +47,117 @@ interface Goal {
     | "weekly"
     | "monthly";
   };
-  isFavourite: boolean,
-  rewardDate: Date,
+  isFavourite: boolean;
+  rewardDate: Date;
   stepGoal: string;
   progress: number;
-  reward_energy: number;
-  reward_growth: number;
+  rewardEnergy: number;
+  rewardGrowth: number;
+  stepValues: string[];
+  isActive: boolean;
 }
 
-// creating a new goal
-app.post('/create/goal', async (req, res) => {
-  const { name, userId, rewardDate, frequency, isFavorite, stepGoal, stepValues } = req.body;
 
-  const initialGoal: Goal = createInitialGoal(name, userId, rewardDate, frequency, isFavorite, stepGoal);
+
+interface GoalDbRepresentation {
+  name: string;
+  userId: string;
+  frequency: string;
+  isFavourite: boolean;
+  rewardDate: Date;
+  stepGoal: string;
+  progress: number;
+  rewardEnergy: number;
+  rewardGrowth: number;
+  stepValues: string;
+  isActive: boolean;
+}
+
+interface User {
+  given_name: string;
+  family_name: string;
+  nickname: string;
+  name: string;
+  picture: string;
+  locale: string;
+  updated_at: string;
+  email: string;
+  email_verified: boolean;
+  sub: string;
+}
+
+
+app.post('/create/user', async (req, res) => {
+  const user: User = req.body;
+
+  console.log("User: " + JSON.stringify(user));
 
   const { data, error } = await supabase
-    .from('goal')
-    .insert([initialGoal]);
+    .from('user')
+    .insert({ "id": user.email, "createDate": user.updated_at, "name": user.name, "rewardEnergy": 0, "rewardGrowth": 0 });
+
+  if (error) {
+    console.log("Error: " + JSON.stringify(error));
+
+  }
 
   res.send(error || data);
 });
 
+
+app.post('/create/goal', async (req, res) => {
+
+  console.log(JSON.stringify(req.body));
+
+  const { name, userId, rewardDate, frequency, isFavourite, stepGoal, stepValues } = req.body;
+  const initialGoal: Goal = createInitialGoal(name, userId, rewardDate, frequency, isFavourite, stepGoal, stepValues);
+
+  const intialGoalDbRepresentation = convertFromGoalToDbRepresentation(initialGoal);
+
+  console.log("Initial Goal: " + JSON.stringify(initialGoal));
+
+  console.log("Initial GoalDbRepresentation: " + JSON.stringify(intialGoalDbRepresentation));
+
+  const { data, error } = await supabase
+    .from('goal')
+
+    .insert([intialGoalDbRepresentation]);
+
+  res.send(error || data);
+  if (error) {
+    console.log("Goal store error: " + JSON.stringify(error));
+  }
+});
+
+const convertFromGoalToDbRepresentation = (goal: Goal): GoalDbRepresentation => {
+
+  const goalDbRepresentation: GoalDbRepresentation = {
+    name: goal.name,
+    userId: goal.userId,
+    frequency: goal.frequency.toString(),
+    isFavourite: goal.isFavourite,
+    rewardDate: goal.rewardDate,
+    stepGoal: goal.stepGoal,
+    progress: goal.progress,
+    rewardEnergy: goal.rewardEnergy,
+    rewardGrowth: goal.rewardGrowth,
+    stepValues: goal.stepValues.toString(),
+    isActive: goal.isActive
+  };
+
+  return goalDbRepresentation;
+};
+
 // add get request to get all goals for user
-app.get('/get/goals', async (req, res) => {
-  const { userId } = req.body;
+app.get('/get/goals/:userId', async (req, res) => {
+  const userId = req.params['userId'];
+
   const { data, error } = await supabase
     .from('goal')
     .select('*')
     .eq('userId', userId);
+  
+
   res.send(error || data);
 });
 
@@ -96,14 +180,14 @@ app.post('/add/step', async (req, res) => {
     .from('goal')
     .update(updatedGoal)
     .eq('name', goalName);
-    
+
 
   res.send(error || data);
 });
 
 
 // implement createInitialGoal function
-const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequency: any, isFavourite: boolean, stepGoal: string): Goal => {
+const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequency: any, isFavourite: boolean, stepGoal: string, stepValues: string[]): Goal => {
 
   const initialGoal: Goal = {
     name,
@@ -113,15 +197,17 @@ const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequ
     rewardDate,
     stepGoal,
     progress: 0,
-    reward_energy: 1,
-    reward_growth: 1,
+    rewardEnergy: 1,
+    rewardGrowth: 1,
+    stepValues,
+    isActive: true
   };
 
   return initialGoal;
 };
 
 const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> => {
-  
+
   const { data, error } = await supabase
     .from('goal')
     .select('*')
@@ -134,8 +220,8 @@ const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> 
   const goal: Goal = data![0];
 
   goal.progress += 1;
-  goal.reward_energy += 1;
-  goal.reward_growth += 1; 
+  goal.rewardEnergy += 1;
+  goal.rewardGrowth += 1;
 
   return goal;
 
