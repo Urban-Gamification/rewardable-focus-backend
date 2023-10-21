@@ -54,8 +54,7 @@ interface Goal {
   reward_growth: number;
 }
 
-
-// Добавление новой цели для пользователя
+// creating a new goal
 app.post('/create/goal', async (req, res) => {
   const { name, userId, rewardDate, frequency, isFavorite, stepGoal, stepValues } = req.body;
 
@@ -79,7 +78,7 @@ app.get('/get/goals', async (req, res) => {
 });
 
 
-// Добавление достижения
+// Adding new achivement for the goal (step)
 app.post('/add/step', async (req, res) => {
   const { goalName, timestamp, value } = req.body;
 
@@ -122,7 +121,7 @@ const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequ
 };
 
 const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> => {
-// request supabase for the goal using the goalName
+  
   const { data, error } = await supabase
     .from('goal')
     .select('*')
