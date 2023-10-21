@@ -10,7 +10,7 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 // if environment = production then port = 3000
-const port = environment === 'production'? 80 : 3000;
+const port = environment === 'production' ? 80 : 3000;
 
 const config = {
   authRequired: false,
@@ -32,37 +32,115 @@ app.get('/', (req, res) => {
   res.send(req.oidc.isAuthenticated() ? 'Logged in' : 'Logged out');
 });
 
-// Your other routes here
+
+interface Goal {
+  name: string;
+  userId: string;
+  frequency: {
+    type:
+    | "hourly"
+    | "every_2_hours"
+    | "every_4_hours"
+    | "daily"
+    | "every_2_days"
+    | "weekly"
+    | "monthly";
+  };
+  isFavourite: boolean,
+  rewardDate: Date,
+  stepGoal: string;
+  progress: number;
+  reward_energy: number;
+  reward_growth: number;
+}
+
 
 // Добавление новой цели для пользователя
-app.post('/add-goal', async (req, res) => {
-  const { user_id, description, status } = req.body;
+app.post('/create/goal', async (req, res) => {
+  const { name, userId, rewardDate, frequency, isFavorite, stepGoal, stepValues } = req.body;
+
+  const initialGoal: Goal = createInitialGoal(name, userId, rewardDate, frequency, isFavorite, stepGoal);
+
   const { data, error } = await supabase
-    .from('Goals')
-    .insert([{ user_id, description, status }]);
+    .from('goal')
+    .insert([initialGoal]);
+
   res.send(error || data);
 });
 
-// Изменение статуса цели
-app.put('/update-goal/:id', async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+// add get request to get all goals for user
+app.get('/get/goals', async (req, res) => {
+  const { userId } = req.body;
   const { data, error } = await supabase
-    .from('Goals')
-    .update({ status })
-    .eq('id', id);
+    .from('goal')
+    .select('*')
+    .eq('userId', userId);
   res.send(error || data);
 });
+
 
 // Добавление достижения
-app.post('/add-achievement', async (req, res) => {
-  const { user_id, goal_id, description, timestamp } = req.body;
+app.post('/add/step', async (req, res) => {
+  const { goalName, timestamp, value } = req.body;
+
+  const step_update_result = await supabase
+    .from('step')
+    .insert([{ goalName, timestamp, value }]);
+
+  if (step_update_result.error) {
+
+    console.log("Error while updating step: " + step_update_result.error);
+  }
+
+  var updatedGoal = await recalculateGoalAfterAchievement(goalName);
   const { data, error } = await supabase
-    .from('Achievements')
-    .insert([{ user_id, goal_id, description, timestamp }]);
+    .from('goal')
+    .update(updatedGoal)
+    .eq('name', goalName);
+    
+
   res.send(error || data);
 });
 
+
+// implement createInitialGoal function
+const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequency: any, isFavourite: boolean, stepGoal: string): Goal => {
+
+  const initialGoal: Goal = {
+    name,
+    userId,
+    frequency,
+    isFavourite,
+    rewardDate,
+    stepGoal,
+    progress: 0,
+    reward_energy: 1,
+    reward_growth: 1,
+  };
+
+  return initialGoal;
+};
+
+const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> => {
+// request supabase for the goal using the goalName
+  const { data, error } = await supabase
+    .from('goal')
+    .select('*')
+    .eq('name', goalName);
+
+  if (error) {
+    console.log(error);
+  }
+
+  const goal: Goal = data![0];
+
+  goal.progress += 1;
+  goal.reward_energy += 1;
+  goal.reward_growth += 1; 
+
+  return goal;
+
+};
 
 
 // Start the server
