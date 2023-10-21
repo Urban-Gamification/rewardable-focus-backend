@@ -28,7 +28,7 @@ const app = express();
 app.use(express.json());
 
 // Use auth middleware
-app.use(auth(config));
+// app.use(auth(config));
 
 app.use(cors({
   origin: 'http://localhost:5173' 
@@ -53,14 +53,14 @@ interface User {
   sub: string;
 }
 
-app.post('/user/create', async (req, res) => {
+// app.post('/user/create', async (req, res) => {
 
-  console.log("USER CREATE 2");
-  console.log(req.body);
+//   console.log("USER CREATE 2");
+//   console.log(req.body);
 
-  res.send('User created');
+//   res.send('User created');
 
-});
+// });
 
 interface Goal {
   name: string;
