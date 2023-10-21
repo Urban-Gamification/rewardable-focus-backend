@@ -53,14 +53,6 @@ interface User {
   sub: string;
 }
 
-app.post('/user/create', async (req, res) => {
-
-  console.log("USER CREATE 2");
-  console.log(req.body);
-
-  res.send('User created');
-
-});
 
 interface Goal {
   name: string;
@@ -115,7 +107,7 @@ interface User {
 }
 
 
-app.post('/create/user', async (req, res) => {
+app.post('/user/create', async (req, res) => {
   const user: User = req.body;
 
   console.log("User: " + JSON.stringify(user));
@@ -133,7 +125,7 @@ app.post('/create/user', async (req, res) => {
 });
 
 
-app.post('/create/goal', async (req, res) => {
+app.post('/goal/create', async (req, res) => {
 
   console.log(JSON.stringify(req.body));
 
@@ -177,7 +169,7 @@ const convertFromGoalToDbRepresentation = (goal: Goal): GoalDbRepresentation => 
 };
 
 // add get request to get all goals for user
-app.get('/get/goals/:userId', async (req, res) => {
+app.get('/goals/:userId', async (req, res) => {
   const userId = req.params['userId'];
 
   const { data, error } = await supabase
@@ -191,7 +183,7 @@ app.get('/get/goals/:userId', async (req, res) => {
 
 
 // Adding new achivement for the goal (step)
-app.post('/add/step', async (req, res) => {
+app.post('/step/add', async (req, res) => {
   const { goalName, timestamp, value } = req.body;
 
   const step_update_result = await supabase
