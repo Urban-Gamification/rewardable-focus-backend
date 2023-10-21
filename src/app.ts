@@ -28,7 +28,7 @@ const app = express();
 app.use(express.json());
 
 // Use auth middleware
-app.use(auth(config));
+// app.use(auth(config));
 
 app.use(cors({
   origin: 'http://localhost:5173' 
