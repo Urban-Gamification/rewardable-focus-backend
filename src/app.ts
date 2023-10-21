@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { auth } from 'express-openid-connect';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
@@ -10,7 +11,7 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 // if environment = production then port = 3000
-const port = environment === 'production' ? 80 : 3000;
+const port = environment === 'production'? 443 : 3000;
 
 const config = {
   authRequired: false,
@@ -28,10 +29,37 @@ const app = express();
 // Use auth middleware
 app.use(auth(config));
 
+app.use(cors({
+  origin: 'http://localhost:5173' 
+}));
+
+app.use(express.json());
+
 app.get('/', (req, res) => {
   res.send(req.oidc.isAuthenticated() ? 'Logged in' : 'Logged out');
 });
 
+interface User {
+  given_name: string;
+  family_name: string; 
+  nickname: string;
+  name: string;
+  picture: string;
+  locale: string;
+  updated_at: string;
+  email: string; 
+  email_verified: boolean;
+  sub: string;
+}
+
+app.post('/user/create', async (req, res) => {
+
+  console.log("USER CREATE 2");
+  console.log(req.body);
+
+  res.send('User created');
+
+});
 
 interface Goal {
   name: string;
@@ -96,7 +124,7 @@ app.post('/add/step', async (req, res) => {
     .from('goal')
     .update(updatedGoal)
     .eq('name', goalName);
-    
+
 
   res.send(error || data);
 });
@@ -121,7 +149,7 @@ const createInitialGoal = (name: string, userId: string, rewardDate: Date, frequ
 };
 
 const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> => {
-  
+
   const { data, error } = await supabase
     .from('goal')
     .select('*')
@@ -135,7 +163,7 @@ const recalculateGoalAfterAchievement = async (goalName: string): Promise<Goal> 
 
   goal.progress += 1;
   goal.reward_energy += 1;
-  goal.reward_growth += 1; 
+  goal.reward_growth += 1;
 
   return goal;
 
